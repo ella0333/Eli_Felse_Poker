@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Poker</title>
+<style>
+:root{
+  --bg:#0d1117; --panel:#161b22; --border:#30363d; --text:#c9d1d9;
+  --muted:#8b949e; --agent:#58a6ff; --actor:#3fb950; --gold:#ffd700; --loss:#f85149;
+}
+*{box-sizing:border-box}
+body{margin:0;padding:14px;background:var(--bg);color:var(--text);
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px}
+.head{display:flex;justify-content:space-between;align-items:baseline;
+  gap:12px;flex-wrap:wrap;margin-bottom:12px}
+h1{margin:0;font-size:16px;font-weight:600}
+.head-right{color:var(--muted);display:flex;gap:14px;flex-wrap:wrap}
+.layout{display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap}
+.table-wrap{flex:1 1 620px;min-width:320px}
+
+/* the felt */
+.poker-table{position:relative;width:100%;max-width:620px;aspect-ratio:620/380;
+  background:radial-gradient(ellipse,#1a6b3c,#145a30);
+  border:10px solid #5d3a1a;border-radius:190px;margin:0 auto}
+.centre{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  text-align:center;width:90%}
+.pot{color:var(--gold);font-size:15px;font-weight:600;margin-bottom:6px}
+.community{display:flex;gap:4px;justify-content:center;min-height:62px}
+
+/* seats */
+.seat{position:absolute;transform:translate(-50%,-50%);text-align:center;width:106px}
+.seat .cards{display:flex;gap:3px;justify-content:center;min-height:50px;margin-bottom:3px}
+.pill{display:inline-block;padding:1px 7px;border-radius:9px;background:#0009;
+  font-size:11px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pill.is-agent{color:var(--agent)}
+.pill.is-actor{color:var(--actor);box-shadow:0 0 0 1px var(--actor)}
+.seat.folded{opacity:.4}
+.seat.out{opacity:.2}
+.seat.out .pill{text-decoration:line-through}
+.seat .line{font-size:11px;color:#e6edf3;margin-top:2px}
+.seat .bet{font-size:11px;color:var(--gold);min-height:14px}
+.dealer{display:inline-block;width:14px;height:14px;line-height:14px;border-radius:50%;
+  background:#fff;color:#111;font-size:9px;font-weight:700;margin-left:4px}
+
+/* cards */
+.card{width:44px;height:62px;border-radius:4px;background:#fff;color:#222;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  font-weight:700;font-size:15px;line-height:1.05}
+.card.red{color:#d32f2f}
+.card.back{background:linear-gradient(135deg,#1f4e8c,#2d6cb5);border:1px solid #16375f}
+.card.sm{width:36px;height:50px;font-size:13px}
+
+/* sidebar */
+.side{flex:0 1 320px;min-width:260px;display:flex;flex-direction:column;gap:10px}
+.card-panel{background:var(--panel);border:1px solid var(--border);border-radius:6px;padding:10px}
+.card-panel h2{margin:0 0 7px;font-size:11px;text-transform:uppercase;
+  letter-spacing:.08em;color:var(--muted);font-weight:600}
+.badge{display:inline-block;padding:1px 7px;border-radius:9px;
+  background:#21262d;border:1px solid var(--border);font-size:11px;margin-right:5px}
+.stack{display:flex;align-items:center;gap:7px;margin-bottom:5px;font-size:12px}
+.stack .who{width:78px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.stack .who.is-agent{color:var(--agent)}
+.bar{flex:1;height:7px;background:#21262d;border-radius:4px;overflow:hidden}
+.bar span{display:block;height:100%;background:var(--actor)}
+.stack .amt{width:58px;text-align:right;color:var(--muted)}
+.log{max-height:190px;overflow-y:auto;font-size:11px;line-height:1.5}
+.log .hand{color:var(--muted);margin-top:5px}
+.think{font-style:italic;color:var(--muted);font-size:11px;line-height:1.5}
+.win{color:var(--actor)} .lose{color:var(--loss)}
+.empty{color:var(--muted);font-style:italic}
+</style>
+</head>
+<body>
+<div class="head">
+  <h1 id="title">Poker</h1>
+  <div class="head-right">
+    <span id="hand-info"></span>
+    <span id="diff-info"></span>
+  </div>
+</div>
+
+<div class="layout">
+  <div class="table-wrap">
+    <div class="poker-table">
+      <div class="centre">
+        <div class="pot" id="pot"></div>
+        <div class="community" id="community"></div>
+      </div>
+      <div id="seats"></div>
+    </div>
+  </div>
+
+  <div class="side">
+    <div class="card-panel">
+      <h2>Status</h2>
+      <div>
+        <span class="badge" id="status-badge">waiting</span>
+        <span class="badge" id="phase-badge"></span>
+        <span class="badge" id="blinds-badge"></span>
+      </div>
+    </div>
+    <div class="card-panel">
+      <h2>Chip stacks</h2>
+      <div id="stacks"></div>
+    </div>
+    <div class="card-panel" id="showdown-panel" style="display:none">
+      <h2>Showdown</h2>
+      <div id="showdown"></div>
+    </div>
+    <div class="card-panel">
+      <h2>Action log</h2>
+      <div class="log" id="log"></div>
+    </div>
+    <div class="card-panel">
+      <h2>Thinking</h2>
+      <div class="think" id="think"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// Seat positions as percentages of the felt, one layout per table size. The
+// agent is always rotated to the bottom seat so the table reads from its side.
+const SEATS = {
+  2: [[50,88],[50,10]],
+  3: [[50,88],[8,30],[92,30]],
+  4: [[50,88],[6,50],[50,10],[94,50]],
+  5: [[50,88],[6,60],[22,15],[78,15],[94,60]],
+  6: [[50,88],[6,68],[10,25],[50,8],[90,25],[94,68]],
+};
+const SUITS = {h:'♥', d:'♦', c:'♣', s:'♠'};
+const RED = new Set(['h','d']);
+
+function renderCard(text, small){
+  const div = document.createElement('div');
+  div.className = 'card' + (small ? ' sm' : '');
+  if(!text){ div.classList.add('back'); return div; }
+  const rank = text[0] === 'T' ? '10' : text[0];
+  const suit = text[1];
+  if(RED.has(suit)) div.classList.add('red');
+  div.textContent = rank + SUITS[suit];
+  return div;
+}
+
+function seatOrder(players){
+  // Rotate so the agent sits at index 0, which is the bottom seat.
+  const at = players.findIndex(p => p.is_agent);
+  if(at < 0) return players;
+  return players.slice(at).concat(players.slice(0, at));
+}
+
+function renderSeats(state){
+  const host = document.getElementById('seats');
+  host.innerHTML = '';
+  const players = seatOrder(state.players || []);
+  const layout = SEATS[players.length] || SEATS[6];
+  players.forEach((p, i) => {
+    const pos = layout[i] || [50, 50];
+    const seat = document.createElement('div');
+    seat.className = 'seat' + (p.is_folded ? ' folded' : '') + (p.is_eliminated ? ' out' : '');
+    seat.style.left = pos[0] + '%';
+    seat.style.top = pos[1] + '%';
+
+    const cards = document.createElement('div');
+    cards.className = 'cards';
+    if(p.hole_cards && p.hole_cards.length){
+      p.hole_cards.forEach(c => cards.appendChild(renderCard(c, true)));
+    } else if(p.has_cards){
+      cards.appendChild(renderCard('', true));
+      cards.appendChild(renderCard('', true));
+    }
+    seat.appendChild(cards);
+
+    const pill = document.createElement('span');
+    pill.className = 'pill' + (p.is_agent ? ' is-agent' : '') +
+      (p.name === state.current_actor ? ' is-actor' : '');
+    pill.textContent = p.name;
+    const wrap = document.createElement('div');
+    wrap.appendChild(pill);
+    if(p.seat === state.dealer_index){
+      const button = document.createElement('span');
+      button.className = 'dealer';
+      button.textContent = 'D';
+      wrap.appendChild(button);
+    }
+    seat.appendChild(wrap);
+
+    const line = document.createElement('div');
+    line.className = 'line';
+    line.textContent = p.is_eliminated ? 'Out'
+      : p.is_all_in ? 'ALL IN'
+      : p.is_folded ? 'Folded'
+      : p.chips.toLocaleString() + ' chips';
+    seat.appendChild(line);
+
+    const bet = document.createElement('div');
+    bet.className = 'bet';
+    bet.textContent = p.current_bet ? p.current_bet.toLocaleString() : '';
+    seat.appendChild(bet);
+
+    host.appendChild(seat);
+  });
+}
+
+function renderStacks(state){
+  const host = document.getElementById('stacks');
+  host.innerHTML = '';
+  const players = state.players || [];
+  const most = Math.max(1, ...players.map(p => p.chips));
+  players.forEach(p => {
+    const row = document.createElement('div');
+    row.className = 'stack';
+    const who = document.createElement('div');
+    who.className = 'who' + (p.is_agent ? ' is-agent' : '');
+    who.textContent = p.name;
+    const bar = document.createElement('div');
+    bar.className = 'bar';
+    const fill = document.createElement('span');
+    fill.style.width = Math.round(100 * p.chips / most) + '%';
+    bar.appendChild(fill);
+    const amount = document.createElement('div');
+    amount.className = 'amt';
+    amount.textContent = p.chips.toLocaleString();
+    row.append(who, bar, amount);
+    host.appendChild(row);
+  });
+}
+
+function renderShowdown(state){
+  const panel = document.getElementById('showdown-panel');
+  const host = document.getElementById('showdown');
+  const results = state.showdown_results || [];
+  const pnl = state.profit_loss || {};
+  const finished = state.status === 'finished';
+  if(!results.length && !(finished && Object.keys(pnl).length)){
+    panel.style.display = 'none';
+    return;
+  }
+  panel.style.display = '';
+  host.innerHTML = '';
+
+  results.forEach(r => {
+    const row = document.createElement('div');
+    row.textContent = r.name + ': ' + r.hand_name +
+      (r.cards.length ? ' (' + r.cards.join(' ') + ')' : '') +
+      (r.won > 0 ? '  +' + r.won.toLocaleString() : '');
+    if(r.won > 0) row.className = 'win';
+    host.appendChild(row);
+  });
+
+  if(finished && state.winner){
+    const banner = document.createElement('div');
+    banner.className = 'win';
+    banner.style.marginTop = '6px';
+    banner.textContent = 'Winner: ' + state.winner;
+    host.appendChild(banner);
+  }
+  if(finished && Object.keys(pnl).length){
+    Object.entries(pnl).sort((a, b) => b[1] - a[1]).forEach(([name, value]) => {
+      const row = document.createElement('div');
+      row.className = value >= 0 ? 'win' : 'lose';
+      row.textContent = name + '  ' + (value > 0 ? '+' : '') + value.toLocaleString();
+      host.appendChild(row);
+    });
+  }
+}
+
+function renderLog(state){
+  const host = document.getElementById('log');
+  const atBottom = host.scrollHeight - host.scrollTop - host.clientHeight < 24;
+  host.innerHTML = '';
+  let lastHand = null;
+  (state.action_log || []).forEach(entry => {
+    if(entry.hand !== lastHand){
+      lastHand = entry.hand;
+      const header = document.createElement('div');
+      header.className = 'hand';
+      header.textContent = '--- Hand #' + entry.hand + ' ---';
+      host.appendChild(header);
+    }
+    const row = document.createElement('div');
+    row.textContent = entry.text;
+    host.appendChild(row);
+  });
+  if(atBottom) host.scrollTop = host.scrollHeight;
+}
+
+function render(state){
+  if(!state || !state.players){
+    document.getElementById('status-badge').textContent = 'no game running';
+    return;
+  }
+  document.getElementById('title').textContent =
+    (state.agent_name || 'Agent') + ' at the poker table';
+  document.getElementById('hand-info').textContent = state.total_hands
+    ? 'Hand ' + state.hand_number + ' of ' + state.total_hands
+    : 'Hand #' + state.hand_number;
+  document.getElementById('diff-info').textContent =
+    (state.bot_difficulty || '') + ' bots';
+  document.getElementById('pot').textContent = 'Pot: ' + (state.pot || 0).toLocaleString();
+
+  const community = document.getElementById('community');
+  community.innerHTML = '';
+  (state.community_cards || []).forEach(c => community.appendChild(renderCard(c)));
+
+  document.getElementById('status-badge').textContent = state.status || '';
+  document.getElementById('phase-badge').textContent = state.phase || '';
+  document.getElementById('blinds-badge').textContent =
+    'Blinds ' + state.small_blind + '/' + state.big_blind;
+
+  renderSeats(state);
+  renderStacks(state);
+  renderShowdown(state);
+  renderLog(state);
+
+  const think = state.thinking_log || [];
+  document.getElementById('think').textContent = think.length
+    ? think[think.length - 1].thinking : '';
+}
+
+async function poll(){
+  try{
+    const response = await fetch('/api/module-state?key=poker');
+    render(await response.json());
+  }catch(e){
+    document.getElementById('status-badge').textContent = 'dashboard unreachable';
+  }
+}
+
+poll();
+setInterval(poll, 500);
+</script>
+</body>
+</html>

@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+
+# Config and secrets
+standalone_config.yaml
+.env
+
+# Standalone session transcripts
+sessions/
+
+# IDE
+.vscode/
+.idea/
