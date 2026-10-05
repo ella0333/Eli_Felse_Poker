@@ -651,7 +651,7 @@ class Budget:
 
     @property
     def remaining(self) -> int | None:
-        """Searches left, or None when there is no cap."""
+        """Games left, or None when there is no cap."""
         if self.limit <= 0:
             return None
         return max(0, self.limit - self.used)
@@ -665,27 +665,27 @@ class Budget:
         self.used += 1
 
     def line(self) -> str:
-        """The budget note the agent reads before it searches."""
+        """The budget note the agent reads before it sets up a game."""
         remaining = self.remaining
         if remaining is None:
             return ""
         if remaining <= 0:
-            return "\n\n[You have no searches left this session.]"
-        plural = "es" if remaining != 1 else ""
+            return "\n\n[You have no games left this session.]"
+        plural = "s" if remaining != 1 else ""
         return (
-            f"\n\n[You have {remaining} search{plural} left this session. "
-            "Each search you make uses one.]"
+            f"\n\n[You have {remaining} game{plural} left this session. "
+            "Each game you play uses one.]"
         )
 
     def status(self) -> str:
         """The framework's own line about where the budget stands."""
         remaining = self.remaining
         if remaining is None:
-            return f"Search {self.used + 1} (no session limit)"
-        plural = "es" if remaining != 1 else ""
+            return f"Game {self.used + 1} (no session limit)"
+        plural = "s" if remaining != 1 else ""
         return (
-            f"Search {self.used + 1} of {self.limit} "
-            f"({remaining} search{plural} left)"
+            f"Game {self.used + 1} of {self.limit} "
+            f"({remaining} game{plural} left)"
         )
 
 
